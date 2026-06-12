@@ -852,3 +852,31 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ─────────────────────────────────────────────
+   CONQUISTAS DESBLOQUEADAS (tela de conclusão)
+──────────────────────────────────────────────── */
+
+.unlocked-achievements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.unlocked-achievement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: hsl(var(--gold) / 0.08);
+  border: 1px solid hsl(var(--gold) / 0.35);
+  text-align: left;
+  animation: slide-up 300ms ease-out;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
