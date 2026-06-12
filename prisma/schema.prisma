@@ -1,0 +1,275 @@
+// Type the Truth — schema local (SQLite)
+// Sem dependência de serviços externos: o banco vive em prisma/dev.db.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// USER & AUTH (local, e-mail + senha)
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions              AuthSession[]
+  preferences           UserPreferences?
+  typingSessions        TypingSession[]
+  userProgress          UserProgress[]
+  userAchievements      UserAchievement[]
+  streak                Streak?
+  guidedPathEnrollments GuidedPathEnrollment[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model UserPreferences {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  preferredTranslationId String
+  uiLanguage             String   @default("pt-BR")
+  theme                  String   @default("dark")
+  // JSON array serializado (SQLite não suporta String[])
+  unlockedThemes         String   @default("[\"dark\",\"light\"]")
+  dailyGoalMinutes       Int      @default(10)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  translation Translation @relation(fields: [preferredTranslationId], references: [id])
+
+  @@map("user_preferences")
+}
+
+// ─────────────────────────────────────────────
+// BIBLE CONTENT
+// ─────────────────────────────────────────────
+
+model Translation {
+  id             String   @id
+  code           String   @unique
+  name           String
+  language       String
+  isPublicDomain Boolean  @default(true)
+  licenseNote    String?
+  createdAt      DateTime @default(now())
+
+  verses          Verse[]
+  userPreferences UserPreferences[]
+
+  @@map("translations")
+}
+
+model Book {
+  id             String @id @default(cuid())
+  osisId         String @unique
+  nameEn         String
+  namePt         String
+  abbreviationEn String
+  abbreviationPt String
+  testament      String // "OT" | "NT"
+  orderIndex     Int    @unique
+  totalChapters  Int
+
+  chapters     Chapter[]
+  userProgress UserProgress[]
+
+  @@map("books")
+}
+
+model Chapter {
+  id            String @id @default(cuid())
+  bookId        String
+  chapterNumber Int
+  totalVerses   Int
+
+  book           Book            @relation(fields: [bookId], references: [id])
+  verses         Verse[]
+  typingSessions TypingSession[]
+  userProgress   UserProgress[]
+
+  @@unique([bookId, chapterNumber])
+  @@map("chapters")
+}
+
+model Verse {
+  id            String @id @default(cuid())
+  chapterId     String
+  translationId String
+  verseNumber   Int
+  text          String
+
+  chapter     Chapter     @relation(fields: [chapterId], references: [id])
+  translation Translation @relation(fields: [translationId], references: [id])
+
+  @@unique([chapterId, translationId, verseNumber])
+  @@index([chapterId, translationId])
+  @@map("verses")
+}
+
+// ─────────────────────────────────────────────
+// TYPING SESSIONS & PROGRESS
+// ─────────────────────────────────────────────
+
+model TypingSession {
+  id              String    @id @default(uuid())
+  userId          String
+  chapterId       String
+  translationId   String
+  status          String    @default("in_progress") // "in_progress" | "completed" | "abandoned"
+  wpm             Float?
+  accuracy        Float?
+  durationSeconds Int?
+  versesTyped     Int       @default(0)
+  totalVerses     Int
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+
+  @@index([userId, startedAt])
+  @@map("typing_sessions")
+}
+
+model UserProgress {
+  id            String   @id @default(uuid())
+  userId        String
+  bookId        String
+  chapterId     String
+  translationId String
+  completedAt   DateTime @default(now())
+  bestWpm       Float?
+  bestAccuracy  Float?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book    @relation(fields: [bookId], references: [id])
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+
+  @@unique([userId, chapterId, translationId])
+  @@map("user_progress")
+}
+
+// ─────────────────────────────────────────────
+// STREAKS
+// ─────────────────────────────────────────────
+
+model Streak {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  currentStreak    Int       @default(0)
+  bestStreak       Int       @default(0)
+  lastActivityDate DateTime?
+  graceUsed        Boolean   @default(false)
+  graceResetAt     DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("streaks")
+}
+
+// ─────────────────────────────────────────────
+// ACHIEVEMENTS
+// ─────────────────────────────────────────────
+
+model Achievement {
+  id            String  @id @default(cuid())
+  code          String  @unique
+  nameEn        String
+  namePt        String
+  descriptionEn String
+  descriptionPt String
+  iconName      String
+  type          String // "progress" | "consistency" | "attention" | "volume" | "fun"
+  unlockTheme   String?
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ─────────────────────────────────────────────
+// GUIDED PATHS
+// ─────────────────────────────────────────────
+
+model GuidedPath {
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  nameEn        String
+  namePt        String
+  descriptionEn String
+  descriptionPt String
+  coverImageUrl String?
+  estimatedDays Int
+  isActive      Boolean @default(true)
+
+  items       GuidedPathItem[]
+  enrollments GuidedPathEnrollment[]
+
+  @@map("guided_paths")
+}
+
+model GuidedPathItem {
+  id            String @id @default(cuid())
+  pathId        String
+  orderIndex    Int
+  bookOsisId    String
+  chapterNumber Int
+
+  path GuidedPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@unique([pathId, orderIndex])
+  @@map("guided_path_items")
+}
+
+model GuidedPathEnrollment {
+  id           String    @id @default(uuid())
+  userId       String
+  pathId       String
+  currentIndex Int       @default(0)
+  enrolledAt   DateTime  @default(now())
+  completedAt  DateTime?
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path GuidedPath @relation(fields: [pathId], references: [id])
+
+  @@unique([userId, pathId])
+  @@map("guided_path_enrollments")
+}
