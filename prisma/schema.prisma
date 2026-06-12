@@ -53,7 +53,7 @@ model UserPreferences {
   uiLanguage             String   @default("pt-BR")
   theme                  String   @default("dark")
   // JSON array serializado (SQLite não suporta String[])
-  unlockedThemes         String   @default("[\"dark\",\"light\"]")
+  unlockedThemes         String   @default("[\"dark\",\"light\",\"parchment\"]")
   dailyGoalMinutes       Int      @default(10)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt

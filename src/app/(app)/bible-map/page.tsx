@@ -13,8 +13,9 @@ export default async function BibleMapPage() {
   const [books, progress, sessions, allChapters] = await Promise.all([
     prisma.book.findMany({ orderBy: { orderIndex: "asc" } }),
     prisma.userProgress.findMany({ where: { userId: user.id } }),
+    // Inclui sessões em andamento — digitação parcial aparece no mapa
     prisma.typingSession.findMany({
-      where: { userId: user.id, status: "completed" },
+      where: { userId: user.id, status: { in: ["in_progress", "completed"] } },
       select: { chapterId: true, versesTyped: true },
     }),
     prisma.chapter.findMany({

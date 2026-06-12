@@ -11,14 +11,10 @@ export default async function AppLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [prefs, streak] = await Promise.all([
-    prisma.userPreferences.findUnique({ where: { userId: user.id } }),
-    prisma.streak.findUnique({ where: { userId: user.id } }),
-  ]);
-  const theme = prefs?.theme ?? "dark";
+  const streak = await prisma.streak.findUnique({ where: { userId: user.id } });
 
   return (
-    <div className="app-shell" data-theme={theme}>
+    <div className="app-shell">
       <Sidebar streakDays={streak?.currentStreak ?? 0} />
       <main className="app-main">{children}</main>
     </div>

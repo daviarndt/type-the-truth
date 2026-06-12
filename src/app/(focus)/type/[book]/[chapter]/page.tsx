@@ -32,7 +32,6 @@ export default async function TypingPage({ params }: PageProps) {
 
   const prefs = await prisma.userPreferences.findUnique({ where: { userId: user.id } });
   const translationId = prefs?.preferredTranslationId ?? "NVI";
-  const theme = prefs?.theme ?? "dark";
 
   const verses = await prisma.verse.findMany({
     where: { chapterId: chapterData.id, translationId },
@@ -55,7 +54,6 @@ export default async function TypingPage({ params }: PageProps) {
 
   return (
     <TypingScreen
-      theme={theme}
       chapter={{
         id: chapterData.id,
         chapterNumber,

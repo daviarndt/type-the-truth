@@ -30,7 +30,6 @@ interface TypingScreenProps {
   verses: VerseData[];
   translationId: string;
   nextChapter: { bookOsisId: string; chapterNumber: number } | null;
-  theme?: string;
 }
 
 interface Letter {
@@ -188,7 +187,6 @@ export function TypingScreen({
   verses,
   translationId,
   nextChapter,
-  theme = "dark",
 }: TypingScreenProps) {
   const { letters, words, wordStarts, verseEndOffsets, firstTypeable } = useMemo(
     () => buildChapter(verses),
@@ -346,6 +344,17 @@ export function TypingScreen({
         statusRef.current = "typing";
         setStatus("typing");
         if (!startTimeRef.current) startTimeRef.current = Date.now();
+        // Marca no servidor que este capítulo está em andamento
+        // (alimenta o "Continuar de onde parou" do dashboard)
+        fetch("/api/sessions/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chapterId: chapter.id,
+            translationId,
+            totalVerses: verses.length,
+          }),
+        }).catch(() => {});
       }
 
       const s = statesRef.current;
@@ -376,7 +385,7 @@ export function TypingScreen({
       commit();
       if (cur >= totalLetters) finish();
     },
-    [letters, totalLetters, commit, finish]
+    [letters, totalLetters, commit, finish, chapter.id, translationId, verses.length]
   );
 
   // ── Backspace ──
@@ -443,6 +452,24 @@ export function TypingScreen({
     return () => clearInterval(id);
   }, [status]);
 
+  // ── Progresso parcial no servidor (a cada versículo completado) ──
+  const lastSentVersesRef = useRef(completedVerses);
+  useEffect(() => {
+    if (status !== "typing") return;
+    if (completedVerses <= lastSentVersesRef.current) return;
+    lastSentVersesRef.current = completedVerses;
+    fetch("/api/sessions/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chapterId: chapter.id,
+        translationId,
+        versesTyped: completedVerses,
+        totalVerses: verses.length,
+      }),
+    }).catch(() => {});
+  }, [completedVerses, status, chapter.id, translationId, verses.length]);
+
   // ── Caret + scroll da linha ativa ──
   useLayoutEffect(() => {
     const container = passageRef.current;
@@ -481,7 +508,7 @@ export function TypingScreen({
     : null;
 
   return (
-    <div className="typing-screen" data-theme={theme} onClick={focusTextarea}>
+    <div className="typing-screen" onClick={focusTextarea}>
       <textarea
         ref={textareaRef}
         aria-label="Campo de digitação"

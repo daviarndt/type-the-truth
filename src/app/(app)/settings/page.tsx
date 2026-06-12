@@ -14,7 +14,9 @@ export default async function SettingsPage() {
     prisma.translation.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  const unlockedThemes: string[] = prefs ? JSON.parse(prefs.unlockedThemes) : ["dark", "light"];
+  const unlockedThemes: string[] = prefs
+    ? JSON.parse(prefs.unlockedThemes)
+    : ["dark", "light", "parchment"];
 
   return (
     <SettingsClient

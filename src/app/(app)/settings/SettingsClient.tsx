@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { saveSettings } from "./actions";
 import { Check, Loader2, Lock } from "lucide-react";
 
@@ -27,7 +28,7 @@ interface Props {
 const THEMES = [
   { id: "dark", label: "Escuro", desc: "Dark mode clássico", bg: "#171614", fg: "#e5e2da", accent: "#4f98a3", unlockHint: null },
   { id: "light", label: "Claro", desc: "Fundo branco suave", bg: "#f7f6f2", fg: "#28251d", accent: "#01696f", unlockHint: null },
-  { id: "parchment", label: "Pergaminho", desc: "Tons quentes de manuscrito", bg: "#ede8de", fg: "#25201a", accent: "#01696f", unlockHint: "Complete seu primeiro capítulo" },
+  { id: "parchment", label: "Pergaminho", desc: "Tons quentes de manuscrito", bg: "#ede8de", fg: "#25201a", accent: "#01696f", unlockHint: null },
 ];
 
 const GOALS = [5, 10, 15, 20, 30, 45, 60];
@@ -39,6 +40,7 @@ export function SettingsClient({ email, displayName, currentPrefs, unlockedTheme
   const [name, setName] = useState(displayName);
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleSave() {
     startTransition(async () => {
@@ -48,6 +50,9 @@ export function SettingsClient({ email, displayName, currentPrefs, unlockedTheme
         theme,
         dailyGoalMinutes: goal,
       });
+      // Aplica o tema imediatamente (o servidor já persistiu)
+      document.documentElement.setAttribute("data-theme", theme);
+      router.refresh();
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     });

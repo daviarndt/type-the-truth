@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [streak, progress, allBooks, verseSessions, allChaptersOrdered] = await Promise.all([
+  const [streak, progress, allBooks, verseSessions, allChaptersOrdered, lastSession] = await Promise.all([
     prisma.streak.findUnique({ where: { userId: user.id } }),
     prisma.userProgress.findMany({
       where: { userId: user.id },
@@ -19,13 +19,20 @@ export default async function DashboardPage() {
       orderBy: { completedAt: "desc" },
     }),
     prisma.book.findMany({ orderBy: { orderIndex: "asc" } }),
+    // Inclui sessões em andamento — digitação parcial conta no progresso
     prisma.typingSession.aggregate({
-      where: { userId: user.id, status: "completed" },
+      where: { userId: user.id, status: { in: ["in_progress", "completed"] } },
       _sum: { versesTyped: true },
     }),
     prisma.chapter.findMany({
       include: { book: true },
       orderBy: [{ book: { orderIndex: "asc" } }, { chapterNumber: "asc" }],
+    }),
+    // Última atividade de digitação (qualquer status) — é daqui que se retoma
+    prisma.typingSession.findFirst({
+      where: { userId: user.id },
+      orderBy: { startedAt: "desc" },
+      select: { chapterId: true },
     }),
   ]);
 
@@ -34,25 +41,35 @@ export default async function DashboardPage() {
   const totalChapters = allBooks.reduce((sum, b) => sum + b.totalChapters, 0);
   const totalVersesTyped = verseSessions._sum.versesTyped ?? 0;
 
-  // Próximo capítulo: continua a partir do último concluído (não volta pra Gênesis 1)
+  // Retomada: parte do último capítulo digitado (em qualquer livro).
+  // Se ele está incompleto → volta exatamente para ele;
+  // se está completo → segue para o próximo não concluído a partir dali;
+  // sem atividade nenhuma → Gênesis 1.
   const nextChapterData = (() => {
-    const lastCompleted = progress[0];
+    const toData = (ch: (typeof allChaptersOrdered)[number], resuming: boolean) => ({
+      bookOsisId: ch.book.osisId,
+      chapterNumber: ch.chapterNumber,
+      bookName: ch.book.namePt,
+      resuming,
+    });
+
     let startIdx = 0;
-    if (lastCompleted) {
-      const lastIdx = allChaptersOrdered.findIndex((ch) => ch.id === lastCompleted.chapterId);
-      if (lastIdx !== -1) startIdx = lastIdx + 1;
+    if (lastSession) {
+      const lastIdx = allChaptersOrdered.findIndex((ch) => ch.id === lastSession.chapterId);
+      if (lastIdx !== -1) {
+        if (!completedChapterIds.has(lastSession.chapterId)) {
+          return toData(allChaptersOrdered[lastIdx], true);
+        }
+        startIdx = lastIdx + 1;
+      }
     }
     for (let i = startIdx; i < allChaptersOrdered.length; i++) {
       const ch = allChaptersOrdered[i];
-      if (!completedChapterIds.has(ch.id)) {
-        return { bookOsisId: ch.book.osisId, chapterNumber: ch.chapterNumber, bookName: ch.book.namePt };
-      }
+      if (!completedChapterIds.has(ch.id)) return toData(ch, false);
     }
     for (let i = 0; i < startIdx; i++) {
       const ch = allChaptersOrdered[i];
-      if (!completedChapterIds.has(ch.id)) {
-        return { bookOsisId: ch.book.osisId, chapterNumber: ch.chapterNumber, bookName: ch.book.namePt };
-      }
+      if (!completedChapterIds.has(ch.id)) return toData(ch, false);
     }
     return null;
   })();
@@ -76,13 +93,13 @@ export default async function DashboardPage() {
           </h2>
           <p className="page-subtitle">
             {nextChapterData
-              ? `Próximo: ${nextChapterData.bookName} ${nextChapterData.chapterNumber}`
+              ? `${nextChapterData.resuming ? "Em andamento" : "Próximo"}: ${nextChapterData.bookName} ${nextChapterData.chapterNumber}`
               : "Você completou toda a Bíblia. Que jornada incrível."}
           </p>
         </div>
         {nextChapterData && (
           <Link href={`/type/${nextChapterData.bookOsisId}/${nextChapterData.chapterNumber}`} className="btn-primary">
-            Continuar digitando
+            {nextChapterData.resuming ? "Continuar de onde parei" : "Continuar digitando"}
             <ArrowRight size={16} />
           </Link>
         )}
@@ -97,10 +114,12 @@ export default async function DashboardPage() {
               {nextChapterData.bookName} {nextChapterData.chapterNumber}
             </h3>
             <p style={{ color: "hsl(var(--muted))", fontSize: ".875rem", marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
-              Continue de onde parou — uma sessão de ~7 minutos é suficiente.
+              {nextChapterData.resuming
+                ? "Você parou no meio deste capítulo — retome de onde estava."
+                : "Continue sua jornada — uma sessão de ~7 minutos é suficiente."}
             </p>
             <Link href={`/type/${nextChapterData.bookOsisId}/${nextChapterData.chapterNumber}`} className="btn-primary">
-              Começar agora
+              {nextChapterData.resuming ? "Retomar capítulo" : "Começar agora"}
               <ArrowRight size={16} />
             </Link>
           </div>

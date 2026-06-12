@@ -105,7 +105,7 @@ const books = [
 
 const achievements = [
   { code: "first_session", nameEn: "First Words", namePt: "Primeiras Palavras", descriptionEn: "Complete your very first typing session.", descriptionPt: "Complete sua primeira sessão de digitação.", iconName: "✒️", type: "progress" },
-  { code: "first_chapter", nameEn: "Chapter One", namePt: "Primeiro Capítulo", descriptionEn: "Complete your first full chapter.", descriptionPt: "Complete seu primeiro capítulo inteiro.", iconName: "📖", type: "progress", unlockTheme: "parchment" },
+  { code: "first_chapter", nameEn: "Chapter One", namePt: "Primeiro Capítulo", descriptionEn: "Complete your first full chapter.", descriptionPt: "Complete seu primeiro capítulo inteiro.", iconName: "📖", type: "progress" },
   { code: "book_john", nameEn: "Book of John", namePt: "Livro de João", descriptionEn: "Complete all 21 chapters of the Gospel of John.", descriptionPt: "Complete todos os 21 capítulos do Evangelho de João.", iconName: "📜", type: "progress" },
   { code: "gospel_finisher", nameEn: "Gospel Finisher", namePt: "Evangelhos Completos", descriptionEn: "Complete all four Gospels.", descriptionPt: "Complete os quatro Evangelhos: Mateus, Marcos, Lucas e João.", iconName: "✝️", type: "progress" },
   { code: "new_testament", nameEn: "New Testament", namePt: "Novo Testamento", descriptionEn: "Complete every book in the New Testament.", descriptionPt: "Complete todos os livros do Novo Testamento.", iconName: "📕", type: "progress" },

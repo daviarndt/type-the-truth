@@ -27,6 +27,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
+    // A sessão concluída substitui o marcador "em andamento" do capítulo
+    // (evita contar os mesmos versículos duas vezes nos agregados)
+    if (status === "completed") {
+      await prisma.typingSession.deleteMany({
+        where: { userId: user.id, chapterId, translationId, status: "in_progress" },
+      });
+    }
+
     const session = await prisma.typingSession.create({
       data: {
         userId: user.id,

@@ -19,7 +19,9 @@ export async function saveSettings(input: SaveSettingsInput) {
 
   // Só permite temas desbloqueados
   const prefs = await prisma.userPreferences.findUnique({ where: { userId: user.id } });
-  const unlockedThemes: string[] = prefs ? JSON.parse(prefs.unlockedThemes) : ["dark", "light"];
+  const unlockedThemes: string[] = prefs
+    ? JSON.parse(prefs.unlockedThemes)
+    : ["dark", "light", "parchment"];
   const safeTheme = unlockedThemes.includes(theme) ? theme : prefs?.theme ?? "dark";
 
   await Promise.all([

@@ -23,9 +23,10 @@ export default async function ProfilePage() {
       include: { achievement: true },
       orderBy: { unlockedAt: "desc" },
     }),
+    // Inclui sessões em andamento — versículos parciais contam nas estatísticas
     prisma.typingSession.findMany({
-      where: { userId: user.id, status: "completed" },
-      orderBy: { completedAt: "desc" },
+      where: { userId: user.id, status: { in: ["in_progress", "completed"] } },
+      orderBy: { startedAt: "desc" },
     }),
   ]);
 

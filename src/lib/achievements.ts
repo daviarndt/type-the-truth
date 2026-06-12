@@ -27,7 +27,7 @@ async function testamentComplete(userId: string, testament: "OT" | "NT"): Promis
 
 async function versesTyped(userId: string): Promise<number> {
   const result = await prisma.typingSession.aggregate({
-    where: { userId, status: "completed" },
+    where: { userId, status: { in: ["in_progress", "completed"] } },
     _sum: { versesTyped: true },
   });
   return result._sum.versesTyped ?? 0;

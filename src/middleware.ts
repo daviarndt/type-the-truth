@@ -30,12 +30,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && (pathname === "/login" || pathname === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
-
+  // Obs.: o redirect de usuário já logado em /login|/signup fica no layout
+  // (auth), que valida a sessão no banco — um cookie órfão aqui causaria
+  // loop infinito entre /login e /dashboard.
   return NextResponse.next();
 }
 
