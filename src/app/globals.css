@@ -1,0 +1,153 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme */
+    --background: 45 23% 96%;
+    --surface: 45 20% 97%;
+    --surface-2: 45 18% 98%;
+    --surface-offset: 40 18% 94%;
+    --border: 35 12% 83%;
+    --foreground: 35 15% 14%;
+    --muted: 35 10% 44%;
+    --muted-foreground: 35 8% 64%;
+    --primary: 183 97% 22%;
+    --primary-hover: 185 72% 19%;
+    --primary-foreground: 0 0% 100%;
+    --gold: 40 73% 41%;
+    --success: 100 55% 30%;
+    --destructive: 0 72% 51%;
+  }
+
+  [data-theme="dark"] {
+    --background: 30 8% 9%;
+    --surface: 30 7% 10%;
+    --surface-2: 30 6% 12%;
+    --surface-offset: 30 7% 13%;
+    --border: 30 7% 22%;
+    --foreground: 40 14% 89%;
+    --muted: 35 8% 65%;
+    --muted-foreground: 35 7% 44%;
+    --primary: 188 35% 47%;
+    --primary-hover: 188 35% 57%;
+    --primary-foreground: 30 8% 9%;
+    --gold: 42 70% 61%;
+    --success: 100 45% 52%;
+    --destructive: 0 65% 60%;
+  }
+
+  [data-theme="parchment"] {
+    --background: 40 35% 92%;
+    --surface: 38 32% 94%;
+    --surface-2: 38 30% 96%;
+    --surface-offset: 38 28% 89%;
+    --border: 35 20% 78%;
+    --foreground: 25 25% 18%;
+    --muted: 30 15% 45%;
+    --muted-foreground: 30 12% 62%;
+    --primary: 183 97% 22%;
+    --primary-hover: 185 72% 19%;
+    --primary-foreground: 0 0% 100%;
+    --gold: 40 73% 38%;
+    --success: 100 55% 30%;
+    --destructive: 0 72% 51%;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Satoshi', Inter, sans-serif;
+    font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    line-height: 1.55;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background rounded-sm;
+  }
+
+  /* Scripture text */
+  .scripture-text {
+    font-size: clamp(1.05rem, 1rem + 0.25vw, 1.18rem);
+    line-height: 1.9;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Tabular numbers for stats */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Meter / progress bar */
+  .meter {
+    @apply h-3 rounded-full overflow-hidden;
+    background: hsl(var(--surface-offset));
+  }
+
+  .meter-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-spring;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary)),
+      color-mix(in oklab, hsl(var(--primary)) 55%, hsl(var(--gold)))
+    );
+  }
+
+  /* Caret animation */
+  .typing-caret {
+    @apply inline-block w-0.5 h-[1.1em] bg-gold align-text-bottom ml-px animate-caret-blink;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
