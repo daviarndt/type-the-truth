@@ -4,37 +4,38 @@
 
 Inspirado no [Monkeytype](https://monkeytype.com), mas pensado como ferramenta de disciplina espiritual, não como jogo de velocidade.
 
-**Stack:** Next.js 14 (App Router) · TypeScript · Tailwind CSS · Prisma · SQLite
+**100% client-side** — site estático, sem servidor, sem conta, sem senha. Todo o seu progresso vive no seu navegador (IndexedDB) e você pode baixar um arquivo de backup a qualquer momento.
+
+**Stack:** Next.js 14 (App Router, `output: export`) · TypeScript · Tailwind CSS · IndexedDB (via `idb`)
 
 ---
 
 ## Rodando o projeto
 
-Nenhum serviço externo é necessário — o banco é um arquivo SQLite local.
-
 ```bash
 # 1. Instalar dependências
 npm install
 
-# 2. Criar o banco e carregar a Bíblia completa (31.105 versículos)
-npm run db:setup
+# 2. Gerar os arquivos da Bíblia (public/bible/*.json) — só na 1ª vez
+npm run build:bible
 
-# 3. Rodar
-npm run dev
+# 3. Desenvolvimento
+npm run dev            # http://localhost:3000
+
+# 4. Build estático (gera ./out com HTML/JS puro)
+npm run build
+npm start              # serve o ./out localmente
 ```
 
-Abra [http://localhost:3000](http://localhost:3000), crie uma conta e comece a digitar.
+O conteúdo de `out/` pode ser hospedado em **qualquer host estático** (GitHub Pages, Netlify, Vercel, Cloudflare Pages…). Não há backend.
 
 ### Scripts
 
 | Script | O que faz |
 |---|---|
 | `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
-| `npm run db:setup` | `db push` + seed de referência + seed da Bíblia (tudo de uma vez) |
-| `npm run db:seed` | Livros, capítulos, conquistas e planos (idempotente) |
-| `npm run db:seed:bible` | Versículos a partir de `scripts/data/pt_nvi.json` (idempotente) |
-| `npm run db:studio` | Prisma Studio para inspecionar o banco |
+| `npm run build` | Build estático → `./out` |
+| `npm run build:bible` | Gera `public/bible/{Livro}.json` a partir de `scripts/data/pt_nvi.json` |
 | `npm run typecheck` | Checagem de tipos |
 
 ---
@@ -42,59 +43,62 @@ Abra [http://localhost:3000](http://localhost:3000), crie uma conta e comece a d
 ## Funcionalidades
 
 - **Tela de digitação** estilo Monkeytype: feedback caractere a caractere, caret animado, PPM, precisão, erros e tempo em tempo real. Prefixos de versículo `[n]` são exibidos mas pulados automaticamente.
-- **Retomar de onde parou** — o progresso de cada capítulo é salvo localmente a cada tecla; feche e volte depois.
-- **Progresso persistente** — capítulos concluídos, melhor PPM/precisão por capítulo, total de versículos digitados.
-- **Mapa Bíblico** — os 66 livros com % de conclusão e grade de capítulos clicável.
-- **Sequência diária (streak)** — com dia de graça após 7 dias de sequência (1x a cada 30 dias) e sem mensagens de culpa.
-- **Conquistas** — progresso, volume, consistência e precisão; exibidas na tela de conclusão ao desbloquear.
-- **Planos de leitura** — Evangelho de João, Os Quatro Evangelhos, Salmos & Provérbios.
-- **Temas desbloqueáveis** — Pergaminho é liberado ao completar o primeiro capítulo.
-- **Auth local** — e-mail/senha com scrypt + sessão em cookie httpOnly. Zero serviços externos.
+- **Retomar de onde parou** — o progresso do capítulo é salvo no navegador a cada instante.
+- **Continuar de onde parei** — o dashboard retoma o último capítulo digitado em qualquer livro (não força começar por Gênesis).
+- **Seletor de livro/capítulo** — vá direto para qualquer trecho (dashboard e tela de digitação).
+- **Progresso, mapa bíblico, sequência (streak), conquistas e planos de leitura.**
+- **Heatmap de atividade** (últimas 26 semanas) no perfil.
+- **Backup** — exporte/importe um arquivo `.json` com todo o seu progresso (para não perder ou levar a outro dispositivo).
+- **PWA instalável** e **funciona offline** (service worker faz cache do app e dos capítulos já visitados).
+- **Bilíngue** (PT-BR / EN) na interface, **3 temas** (Escuro, Claro, Pergaminho), **som de teclado** opcional e **tamanho de fonte** ajustável.
+
+### Atalhos da tela de digitação
+
+| Atalho | Ação |
+|---|---|
+| Qualquer tecla | Começa a sessão |
+| `Tab` → `Enter` | Reinicia o capítulo |
+| `Esc` | Sai para o dashboard |
+
+---
 
 ## Arquitetura
 
 ```
 src/
 ├── app/
-│   ├── (auth)/            ← login, signup
-│   ├── (app)/             ← páginas com sidebar (dashboard, mapa, conquistas, planos, perfil, configurações)
-│   ├── (focus)/type/      ← tela de digitação (sem distrações, sem sidebar)
-│   ├── api/               ← sessions, plans/enroll, auth/signout
-│   ├── globals.css        ← design tokens (temas via CSS variables)
-│   └── app.css            ← estilos de componentes
+│   ├── (app)/            ← páginas com sidebar (dashboard, mapa, conquistas, planos, perfil, configurações)
+│   ├── (focus)/type/     ← tela de digitação (sem distrações)
+│   ├── layout.tsx        ← AppProvider (settings/i18n/tema) + registro do service worker
+│   ├── globals.css       ← design tokens (temas via CSS variables)
+│   └── app.css           ← estilos de componentes
 ├── components/
-│   ├── typing/TypingScreen.tsx   ← engine de digitação
-│   └── layout/                   ← Sidebar, Brand
-├── lib/
-│   ├── auth.ts            ← sessões + hash de senha (scrypt)
-│   ├── streak.ts          ← regras de sequência diária
-│   ├── achievements.ts    ← engine de conquistas
-│   └── prisma.ts
-└── middleware.ts          ← checagem leve do cookie de sessão
+│   ├── AppProvider.tsx   ← estado global: settings (IndexedDB), i18n, tema
+│   ├── typing/TypingScreen.tsx
+│   ├── ChapterPicker.tsx · Heatmap.tsx · ServiceWorkerRegister.tsx
+│   └── layout/           ← Sidebar, Brand
+└── lib/
+    ├── db.ts             ← IndexedDB (progresso, sessões, streak, conquistas, settings, resume) + export/import
+    ├── bible.ts          ← carrega capítulos de public/bible/
+    ├── books.ts          ← metadados dos 66 livros (estático)
+    ├── paths.ts          ← planos de leitura (estático)
+    ├── achievements.ts   ← definições + avaliação client-side
+    ├── streak.ts · stats.ts · save.ts · i18n.ts · utils.ts
 
-prisma/schema.prisma       ← SQLite (dev.db, fora do git)
-scripts/seed.ts            ← dados de referência
-scripts/seed-bible.ts      ← versículos NVI
+public/
+├── bible/{Livro}.json    ← versículos (gerado por build:bible)
+├── manifest.webmanifest · sw.js · icon.svg
+scripts/
+├── build-bible.mjs       ← gera public/bible/ a partir de pt_nvi.json
+└── data/pt_nvi.json      ← fonte (NVI)
 ```
 
-### Decisões principais (vs. protótipo anterior)
+### Por que sem servidor?
 
-| Antes | Agora | Por quê |
-|---|---|---|
-| Supabase (Postgres + Auth) | SQLite + auth local | O projeto Supabase original foi desativado; sem dependências externas o app roda em qualquer máquina com `npm run db:setup` |
-| Engine com estado duplicado (Zustand + componente) | Engine única em `TypingScreen` | O protótipo tinha duas engines, uma morta; a nova corrige perda de teclas, backspace inconsistente e re-render do capítulo inteiro a cada tecla |
-| Digitação dentro do layout com sidebar | Route group `(focus)` | "O texto é o herói" — tela de digitação sem navegação |
+É um projeto de hobby para site estático. Sem backend não há banco de dados para manter, custo de hospedagem, contas de usuário nem superfície de ataque. A troca: o progresso é por-navegador — daí o **backup exportável** cobrir a portabilidade entre dispositivos.
 
-### Engine de digitação — notas
-
-- O estado autoritativo (cursor, estado por letra, erros) vive em **refs**; o React recebe commits como uma string de estados por palavra. Palavras inalteradas não re-renderizam (`React.memo`) — Salmo 119 digita liso.
-- O handler de `input` processa o valor inteiro do textarea, então eventos com múltiplos caracteres (IME, autocomplete, mobile) não perdem teclas.
-- Espaços entre versículos são digitáveis (como espaços entre palavras no Monkeytype); prefixos `[n]` avançam sozinhos.
+---
 
 ## Conteúdo bíblico e licença
 
-O texto carregado é a **NVI em português** (`scripts/data/pt_nvi.json`), que é © Biblica e **não é de domínio público** — uso estritamente pessoal/local. Para publicar o app, troque por uma tradução de domínio público (ex.: Almeida Revisada e Corrigida, ou World English Bible em inglês): basta criar um novo registro em `translations` e adaptar o seed — o schema já suporta múltiplas traduções.
-
-## Deploy (futuro)
-
-Para produção será preciso migrar o `datasource` do Prisma para Postgres (Neon, Supabase, Railway...) e definir `AUTH_SECRET` forte — o restante do código não depende do SQLite.
+O texto carregado é a **NVI em português** (`scripts/data/pt_nvi.json`), que é © Biblica e **não é de domínio público** — uso estritamente pessoal/local. Para publicar o app abertamente, troque por uma tradução de domínio público (ex.: Almeida Revisada e Corrigida): gere novos arquivos em `public/bible/` no mesmo formato (array de capítulos → array de versículos).
