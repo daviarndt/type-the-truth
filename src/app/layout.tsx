@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import type { Metadata, Viewport } from "next";
+import { AppProvider } from "@/components/AppProvider";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 import "./app.css";
 
@@ -11,33 +11,29 @@ export const metadata: Metadata = {
   },
   description:
     "Digite sua jornada pelas Escrituras. Uma experiência de digitação focada e minimalista, capítulo a capítulo pela Bíblia inteira.",
-  openGraph: {
-    title: "Type the Truth",
-    description: "Sua jornada pelas Escrituras — um capítulo de cada vez.",
-    type: "website",
-  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Type the Truth", statusBarStyle: "black-translucent" },
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // O tema do usuário é aplicado no <html> — única fonte de verdade.
-  // (Os valores "light" vivem no :root; os demais temas em [data-theme="..."].)
-  let theme = "dark";
-  const user = await getCurrentUser();
-  if (user) {
-    const prefs = await prisma.userPreferences.findUnique({
-      where: { userId: user.id },
-      select: { theme: true },
-    });
-    if (prefs) theme = prefs.theme;
-  }
+export const viewport: Viewport = {
+  themeColor: "#171614",
+  width: "device-width",
+  initialScale: 1,
+};
 
+// Aplica tema + escala de fonte antes da primeira pintura (evita flash).
+const noFlash = `(function(){try{var t=localStorage.getItem('ttt_theme')||'dark';document.documentElement.setAttribute('data-theme',t);var f=localStorage.getItem('ttt_fontScale');if(f)document.documentElement.style.setProperty('--font-scale',f);}catch(e){}})();`;
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" data-theme={theme}>
-      <body>{children}</body>
+    <html lang="pt-BR" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: noFlash }} />
+      </head>
+      <body>
+        <AppProvider>{children}</AppProvider>
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

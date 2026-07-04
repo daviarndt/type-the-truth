@@ -1,142 +1,108 @@
-import { prisma } from "./prisma";
+// Definições de conquistas + avaliação 100% client-side.
 
-interface AchievementCheck {
+import { BOOKS, getBook } from "./books";
+import type { ProgressMap, SessionRecord, StreakState } from "./db";
+
+export type AchievementType = "progress" | "consistency" | "attention" | "volume";
+
+export interface AchievementDef {
   code: string;
-  check: (userId: string) => Promise<boolean>;
+  nameEn: string;
+  namePt: string;
+  descriptionEn: string;
+  descriptionPt: string;
+  iconName: string;
+  type: AchievementType;
+  /** Tema desbloqueado ao ganhar (opcional). */
+  unlockTheme?: string;
 }
 
-/** Capítulos completos de um livro (por osisId). */
-async function bookComplete(userId: string, osisId: string): Promise<boolean> {
-  const book = await prisma.book.findUnique({ where: { osisId } });
-  if (!book) return false;
-  const completed = await prisma.userProgress.count({
-    where: { userId, bookId: book.id },
-  });
-  return completed >= book.totalChapters;
-}
+export const ACHIEVEMENTS: AchievementDef[] = [
+  { code: "first_session", nameEn: "First Words", namePt: "Primeiras Palavras", descriptionEn: "Complete your very first typing session.", descriptionPt: "Complete sua primeira sessão de digitação.", iconName: "✒️", type: "progress" },
+  { code: "first_chapter", nameEn: "Chapter One", namePt: "Primeiro Capítulo", descriptionEn: "Complete your first full chapter.", descriptionPt: "Complete seu primeiro capítulo inteiro.", iconName: "📖", type: "progress" },
+  { code: "book_john", nameEn: "Book of John", namePt: "Livro de João", descriptionEn: "Complete all 21 chapters of the Gospel of John.", descriptionPt: "Complete todos os 21 capítulos do Evangelho de João.", iconName: "📜", type: "progress" },
+  { code: "gospel_finisher", nameEn: "Gospel Finisher", namePt: "Evangelhos Completos", descriptionEn: "Complete all four Gospels.", descriptionPt: "Complete os quatro Evangelhos: Mateus, Marcos, Lucas e João.", iconName: "✝️", type: "progress" },
+  { code: "old_testament", nameEn: "Old Testament", namePt: "Antigo Testamento", descriptionEn: "Complete every book in the Old Testament.", descriptionPt: "Complete todos os livros do Antigo Testamento.", iconName: "📘", type: "progress" },
+  { code: "new_testament", nameEn: "New Testament", namePt: "Novo Testamento", descriptionEn: "Complete every book in the New Testament.", descriptionPt: "Complete todos os livros do Novo Testamento.", iconName: "📕", type: "progress" },
+  { code: "whole_bible", nameEn: "The Full Journey", namePt: "A Jornada Completa", descriptionEn: "Type through the entire Bible — all 66 books.", descriptionPt: "Digite pela Bíblia inteira — todos os 66 livros.", iconName: "👑", type: "progress" },
 
-/** Todos os livros de um testamento completos. */
-async function testamentComplete(userId: string, testament: "OT" | "NT"): Promise<boolean> {
-  const books = await prisma.book.findMany({ where: { testament } });
-  const totalChapters = books.reduce((s, b) => s + b.totalChapters, 0);
-  const completed = await prisma.userProgress.count({
-    where: { userId, bookId: { in: books.map((b) => b.id) } },
-  });
-  return completed >= totalChapters;
-}
+  { code: "streak_7", nameEn: "7-Day Rhythm", namePt: "Ritmo de 7 Dias", descriptionEn: "Reach a 7-day streak.", descriptionPt: "Alcance uma sequência de 7 dias.", iconName: "🔥", type: "consistency" },
+  { code: "streak_30", nameEn: "30-Day Faithful", namePt: "Fiel por 30 Dias", descriptionEn: "Reach a 30-day streak.", descriptionPt: "Alcance uma sequência de 30 dias.", iconName: "🕯️", type: "consistency" },
+  { code: "streak_100", nameEn: "100-Day Devotion", namePt: "Devoção de 100 Dias", descriptionEn: "Reach a 100-day streak.", descriptionPt: "Alcance uma sequência de 100 dias.", iconName: "⭐", type: "consistency" },
 
-async function versesTyped(userId: string): Promise<number> {
-  const result = await prisma.typingSession.aggregate({
-    where: { userId, status: { in: ["in_progress", "completed"] } },
-    _sum: { versesTyped: true },
-  });
-  return result._sum.versesTyped ?? 0;
-}
+  { code: "sharp_pen", nameEn: "Sharp Pen", namePt: "Pena Afiada", descriptionEn: "Complete 5 sessions with 99%+ accuracy.", descriptionPt: "Complete 5 sessões com 99%+ de precisão.", iconName: "🎯", type: "attention" },
+  { code: "flawless", nameEn: "Flawless", namePt: "Impecável", descriptionEn: "Complete a chapter with 100% accuracy.", descriptionPt: "Complete um capítulo com 100% de precisão.", iconName: "💎", type: "attention" },
 
-const ACHIEVEMENT_CHECKS: AchievementCheck[] = [
-  {
-    code: "first_session",
-    check: async (userId) =>
-      (await prisma.typingSession.count({ where: { userId, status: "completed" } })) >= 1,
-  },
-  {
-    code: "first_chapter",
-    check: async (userId) => (await prisma.userProgress.count({ where: { userId } })) >= 1,
-  },
-  {
-    code: "sharp_pen",
-    check: async (userId) =>
-      (await prisma.typingSession.count({
-        where: { userId, status: "completed", accuracy: { gte: 99 } },
-      })) >= 5,
-  },
-  // Volume de versículos
-  ...[10, 50, 100, 500, 1000, 3000, 5000, 10000, 15000, 20000, 25000, 30000, 31102].map((n) => ({
-    code: `verses_${n}`,
-    check: async (userId: string) => (await versesTyped(userId)) >= n,
-  })),
-  // Sequências
-  ...[7, 30, 100].map((n) => ({
-    code: `streak_${n}`,
-    check: async (userId: string) => {
-      const streak = await prisma.streak.findUnique({ where: { userId } });
-      return (streak?.bestStreak ?? 0) >= n;
-    },
-  })),
-  // Progresso por livro/testamento
-  { code: "book_john", check: (userId) => bookComplete(userId, "John") },
-  {
-    code: "gospel_finisher",
-    check: async (userId) => {
-      for (const osisId of ["Matt", "Mark", "Luke", "John"]) {
-        if (!(await bookComplete(userId, osisId))) return false;
-      }
-      return true;
-    },
-  },
-  { code: "new_testament", check: (userId) => testamentComplete(userId, "NT") },
-  { code: "old_testament", check: (userId) => testamentComplete(userId, "OT") },
-  {
-    code: "whole_bible",
-    check: async (userId) =>
-      (await testamentComplete(userId, "OT")) && (await testamentComplete(userId, "NT")),
-  },
+  { code: "verses_10", nameEn: "First Steps", namePt: "Primeiros Passos", descriptionEn: "Type 10 verses.", descriptionPt: "Digite 10 versículos.", iconName: "🌱", type: "volume" },
+  { code: "verses_50", nameEn: "Taking Root", namePt: "Lançando Raízes", descriptionEn: "Type 50 verses.", descriptionPt: "Digite 50 versículos.", iconName: "🌿", type: "volume" },
+  { code: "verses_100", nameEn: "Apprentice", namePt: "Aprendiz", descriptionEn: "Type 100 verses.", descriptionPt: "Digite 100 versículos.", iconName: "✍️", type: "volume" },
+  { code: "verses_500", nameEn: "Dedicated Scribe", namePt: "Escriba Dedicado", descriptionEn: "Type 500 verses.", descriptionPt: "Digite 500 versículos.", iconName: "📜", type: "volume" },
+  { code: "verses_1000", nameEn: "Scribe", namePt: "Escriba", descriptionEn: "Type 1,000 verses.", descriptionPt: "Digite 1.000 versículos.", iconName: "🖋️", type: "volume" },
+  { code: "verses_3000", nameEn: "Journeyman", namePt: "Escriba de Ofício", descriptionEn: "Type 3,000 verses.", descriptionPt: "Digite 3.000 versículos.", iconName: "📖", type: "volume" },
+  { code: "verses_5000", nameEn: "Faithful Scribe", namePt: "Escriba Fiel", descriptionEn: "Type 5,000 verses.", descriptionPt: "Digite 5.000 versículos.", iconName: "🕯️", type: "volume" },
+  { code: "verses_10000", nameEn: "Chronicler", namePt: "Cronista", descriptionEn: "Type 10,000 verses.", descriptionPt: "Digite 10.000 versículos.", iconName: "📚", type: "volume" },
+  { code: "verses_20000", nameEn: "Sage", namePt: "Sábio", descriptionEn: "Type 20,000 verses.", descriptionPt: "Digite 20.000 versículos.", iconName: "🌟", type: "volume" },
+  { code: "verses_31105", nameEn: "The Full Bible", namePt: "A Bíblia Completa", descriptionEn: "Type all 31,105 verses of the Bible.", descriptionPt: "Digite todos os 31.105 versículos da Bíblia.", iconName: "👑", type: "volume" },
 ];
 
-export interface UnlockedAchievementInfo {
-  code: string;
-  namePt: string;
-  nameEn: string;
-  iconName: string;
+const byCode = new Map(ACHIEVEMENTS.map((a) => [a.code, a]));
+export function getAchievement(code: string): AchievementDef | undefined {
+  return byCode.get(code);
 }
 
-/**
- * Verifica e concede conquistas recém-merecidas.
- * Retorna as conquistas desbloqueadas agora (para exibir na tela de conclusão).
- */
-export async function checkAndAwardAchievements(
-  userId: string
-): Promise<UnlockedAchievementInfo[]> {
-  const [alreadyUnlocked, allAchievements] = await Promise.all([
-    prisma.userAchievement.findMany({ where: { userId }, select: { achievementId: true } }),
-    prisma.achievement.findMany(),
-  ]);
-  const unlockedIds = new Set(alreadyUnlocked.map((a) => a.achievementId));
-  const byCode = new Map(allAchievements.map((a) => [a.code, a]));
+// ── Avaliação ──────────────────────────────────────
 
-  const newlyUnlocked: UnlockedAchievementInfo[] = [];
+export interface EvalInput {
+  progress: ProgressMap;
+  sessions: SessionRecord[];
+  streak: StreakState;
+  totalVersesTyped: number;
+}
 
-  for (const { code, check } of ACHIEVEMENT_CHECKS) {
-    const achievement = byCode.get(code);
-    if (!achievement || unlockedIds.has(achievement.id)) continue;
-    if (!(await check(userId))) continue;
+function completedChaptersOf(progress: ProgressMap, osisId: string): number {
+  let n = 0;
+  for (const key of Object.keys(progress)) {
+    if (key.startsWith(osisId + "_")) n++;
+  }
+  return n;
+}
 
-    await prisma.userAchievement.create({
-      data: { userId, achievementId: achievement.id },
-    });
+function bookComplete(progress: ProgressMap, osisId: string): boolean {
+  const book = getBook(osisId);
+  return book ? completedChaptersOf(progress, osisId) >= book.totalChapters : false;
+}
 
-    // Desbloqueia tema vinculado (unlockedThemes é JSON serializado no SQLite)
-    if (achievement.unlockTheme) {
-      const prefs = await prisma.userPreferences.findUnique({ where: { userId } });
-      if (prefs) {
-        const themes: string[] = JSON.parse(prefs.unlockedThemes);
-        if (!themes.includes(achievement.unlockTheme)) {
-          themes.push(achievement.unlockTheme);
-          await prisma.userPreferences.update({
-            where: { userId },
-            data: { unlockedThemes: JSON.stringify(themes) },
-          });
-        }
-      }
-    }
+function testamentComplete(progress: ProgressMap, testament: "OT" | "NT"): boolean {
+  return BOOKS.filter((b) => b.testament === testament).every((b) => bookComplete(progress, b.osisId));
+}
 
-    newlyUnlocked.push({
-      code,
-      namePt: achievement.namePt,
-      nameEn: achievement.nameEn,
-      iconName: achievement.iconName,
-    });
+/** Retorna os códigos de conquistas que o estado atual satisfaz. */
+export function evaluateAchievements(input: EvalInput): string[] {
+  const { progress, sessions, streak, totalVersesTyped } = input;
+  const completedChapters = Object.keys(progress).length;
+  const satisfied: string[] = [];
+  const add = (code: string, cond: boolean) => {
+    if (cond) satisfied.push(code);
+  };
+
+  add("first_session", sessions.length >= 1);
+  add("first_chapter", completedChapters >= 1);
+  add("book_john", bookComplete(progress, "John"));
+  add("gospel_finisher", ["Matt", "Mark", "Luke", "John"].every((o) => bookComplete(progress, o)));
+  add("old_testament", testamentComplete(progress, "OT"));
+  add("new_testament", testamentComplete(progress, "NT"));
+  add("whole_bible", testamentComplete(progress, "OT") && testamentComplete(progress, "NT"));
+
+  add("streak_7", streak.bestStreak >= 7);
+  add("streak_30", streak.bestStreak >= 30);
+  add("streak_100", streak.bestStreak >= 100);
+
+  add("sharp_pen", sessions.filter((s) => (s.accuracy ?? 0) >= 99).length >= 5);
+  add("flawless", sessions.some((s) => (s.accuracy ?? 0) >= 100));
+
+  for (const n of [10, 50, 100, 500, 1000, 3000, 5000, 10000, 20000, 31105]) {
+    add(`verses_${n}`, totalVersesTyped >= n);
   }
 
-  return newlyUnlocked;
+  return satisfied;
 }

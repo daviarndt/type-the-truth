@@ -1,42 +1,40 @@
+"use client";
+
 import Link from "next/link";
 import { BrandMark } from "@/components/layout/Brand";
+import { useApp } from "@/components/AppProvider";
 
 export default function LandingPage() {
+  const { t } = useApp();
+
   return (
     <div className="landing">
-      {/* Nav */}
       <nav className="landing-nav">
         <div className="brand-row">
           <BrandMark size={36} />
           <span className="brand-name">Type the Truth</span>
         </div>
         <div className="nav-actions">
-          <Link href="/login" className="btn-ghost">Entrar</Link>
-          <Link href="/signup" className="btn-primary">Começar grátis</Link>
+          <Link href="/dashboard" className="btn-primary">{t("landing.cta")}</Link>
         </div>
       </nav>
 
-      {/* Hero */}
       <main className="hero">
-        <div className="pill">Bíblia completa · 31.105 versículos</div>
+        <div className="pill">{t("landing.pill")}</div>
 
         <h1 className="hero-title">
-          Digite sua jornada
+          {t("landing.title1")}
           <br />
-          <span>pelas Escrituras</span>
+          <span>{t("landing.title2")}</span>
         </h1>
 
-        <p className="hero-desc">
-          Uma experiência de digitação focada, minimalista e reverente.
-          Avance capítulo a capítulo pela Bíblia inteira — no seu ritmo, um dia de cada vez.
-        </p>
+        <p className="hero-desc">{t("landing.desc")}</p>
 
         <div className="cta-row">
-          <Link href="/signup" className="btn-primary">Começar minha jornada →</Link>
-          <Link href="/login" className="btn-outline">Já tenho uma conta</Link>
+          <Link href="/dashboard" className="btn-primary">{t("landing.cta")}</Link>
         </div>
+        <p style={{ fontSize: ".8rem", color: "hsl(var(--muted-foreground))" }}>{t("landing.privacy")}</p>
 
-        {/* Preview */}
         <div className="mockup">
           <div className="mockup-bar">
             <span className="mockup-dot" style={{ background: "#f87171" }} />
@@ -53,21 +51,20 @@ export default function LandingPage() {
 
         <div className="feature-pills">
           {[
-            "Feedback em tempo real",
-            "Progresso capítulo a capítulo",
-            "Retome de onde parou",
-            "Sequências e conquistas",
-            "Planos de leitura",
-            "Funciona offline-first",
+            t("landing.feat.realtime"),
+            t("landing.feat.progress"),
+            t("landing.feat.resume"),
+            t("landing.feat.streak"),
+            t("landing.feat.plans"),
+            t("landing.feat.offline"),
           ].map((f) => (
             <span key={f} className="feature-pill">{f}</span>
           ))}
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="landing-footer">
-        © {new Date().getFullYear()} Type the Truth · Sua jornada pelas Escrituras
+        © {new Date().getFullYear()} Type the Truth · {t("brand.tagline")}
       </footer>
     </div>
   );

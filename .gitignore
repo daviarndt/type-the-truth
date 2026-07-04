@@ -5,7 +5,7 @@ node_modules/
 .next/
 out/
 
-# production
+# build
 build/
 
 # misc
@@ -20,10 +20,6 @@ yarn-error.log*
 # env
 .env
 .env*.local
-
-# database (SQLite local)
-prisma/dev.db
-prisma/dev.db-journal
 
 # typescript
 *.tsbuildinfo

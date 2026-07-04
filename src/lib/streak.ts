@@ -1,73 +1,48 @@
-import { prisma } from "./prisma";
-import { isToday, isYesterday } from "./utils";
+// Regras de sequência diária — client-side, baseadas em datas locais.
+
+import type { StreakState } from "./db";
+
+function todayKey(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function daysBetween(a: string, b: string): number {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  const da = Date.UTC(ay, am - 1, ad);
+  const db = Date.UTC(by, bm - 1, bd);
+  return Math.round((db - da) / 86400000);
+}
 
 /**
- * Atualiza a sequência diária após uma sessão concluída.
- * Regras (doc de produto):
- *  - 1+ sessão por dia mantém a sequência
- *  - Pular um dia zera, MAS quem tem 7+ dias ganha 1 dia de graça
- *    (usado silenciosamente, 1x a cada 30 dias)
- *  - A melhor sequência é sempre preservada
+ * Atualiza a sequência após uma sessão concluída hoje.
+ * - Mesmo dia: nada muda.
+ * - Dia seguinte: +1.
+ * - Pulou dias: reseta para 1.
+ * A melhor sequência é sempre preservada.
  */
-export async function updateStreak(userId: string) {
-  const existing = await prisma.streak.findUnique({ where: { userId } });
-  const now = new Date();
+export function bumpStreak(prev: StreakState): StreakState {
+  const today = todayKey();
+  if (prev.lastActivityDate === today) return prev;
 
-  if (!existing) {
-    return prisma.streak.create({
-      data: { userId, currentStreak: 1, bestStreak: 1, lastActivityDate: now },
-    });
+  let currentStreak: number;
+  if (prev.lastActivityDate && daysBetween(prev.lastActivityDate, today) === 1) {
+    currentStreak = prev.currentStreak + 1;
+  } else {
+    currentStreak = 1;
   }
 
-  const last = existing.lastActivityDate;
+  return {
+    currentStreak,
+    bestStreak: Math.max(currentStreak, prev.bestStreak),
+    lastActivityDate: today,
+  };
+}
 
-  // Já digitou hoje — nada muda
-  if (last && isToday(last)) return existing;
-
-  // Digitou ontem — estende a sequência
-  if (last && isYesterday(last)) {
-    const newStreak = existing.currentStreak + 1;
-    return prisma.streak.update({
-      where: { userId },
-      data: {
-        currentStreak: newStreak,
-        bestStreak: Math.max(newStreak, existing.bestStreak),
-        lastActivityDate: now,
-      },
-    });
-  }
-
-  // Perdeu um ou mais dias — verifica o dia de graça
-  const graceAvailable =
-    !existing.graceUsed ||
-    (existing.graceResetAt !== null && existing.graceResetAt < now);
-
-  if (graceAvailable && existing.currentStreak >= 7 && last) {
-    const dayBeforeYesterday = new Date();
-    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
-    const missedOnlyOneDay =
-      last.getFullYear() === dayBeforeYesterday.getFullYear() &&
-      last.getMonth() === dayBeforeYesterday.getMonth() &&
-      last.getDate() === dayBeforeYesterday.getDate();
-
-    if (missedOnlyOneDay) {
-      const newStreak = existing.currentStreak + 1;
-      return prisma.streak.update({
-        where: { userId },
-        data: {
-          currentStreak: newStreak,
-          bestStreak: Math.max(newStreak, existing.bestStreak),
-          lastActivityDate: now,
-          graceUsed: true,
-          graceResetAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-        },
-      });
-    }
-  }
-
-  // Recomeça em 1 (a melhor sequência fica registrada)
-  return prisma.streak.update({
-    where: { userId },
-    data: { currentStreak: 1, lastActivityDate: now },
-  });
+/** Zera a sequência atual se o último dia de atividade não foi hoje nem ontem. */
+export function reconcileStreak(prev: StreakState): StreakState {
+  if (!prev.lastActivityDate || prev.currentStreak === 0) return prev;
+  const gap = daysBetween(prev.lastActivityDate, todayKey());
+  if (gap <= 1) return prev;
+  return { ...prev, currentStreak: 0 };
 }
