@@ -1,7 +1,10 @@
-/* Service worker mínimo — app shell + cache dos capítulos da Bíblia (offline). */
+/* Service worker mínimo — app shell + cache dos capítulos da Bíblia (offline).
+   Base-path-agnóstico: deriva o prefixo do próprio caminho de sw.js,
+   funcionando tanto na raiz quanto em subdiretório (GitHub Pages). */
 const CACHE = "ttt-v1";
+const BASE = self.location.pathname.replace(/\/sw\.js$/, ""); // "" ou "/type-the-truth"
 
-self.addEventListener("install", (e) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
@@ -19,7 +22,8 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) return;
 
   // Capítulos da Bíblia e assets estáticos: cache-first (nunca mudam)
-  const cacheFirst = url.pathname.startsWith("/bible/") || url.pathname.startsWith("/_next/static/");
+  const cacheFirst =
+    url.pathname.startsWith(`${BASE}/bible/`) || url.pathname.startsWith(`${BASE}/_next/static/`);
 
   if (cacheFirst) {
     e.respondWith(
@@ -41,6 +45,6 @@ self.addEventListener("fetch", (e) => {
         if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
         return res;
       })
-      .catch(() => caches.match(req).then((hit) => hit || caches.match("/dashboard")))
+      .catch(() => caches.match(req).then((hit) => hit || caches.match(`${BASE}/dashboard`)))
   );
 });

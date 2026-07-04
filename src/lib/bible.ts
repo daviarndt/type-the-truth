@@ -6,22 +6,18 @@ export interface Verse {
   text: string;
 }
 
+import { withBase } from "./basePath";
+
 const cache = new Map<string, string[][]>();
 
 async function loadBook(osisId: string): Promise<string[][]> {
   const cached = cache.get(osisId);
   if (cached) return cached;
-  const res = await fetch(`${basePath()}/bible/${osisId}.json`);
+  const res = await fetch(withBase(`/bible/${osisId}.json`));
   if (!res.ok) throw new Error(`Falha ao carregar ${osisId} (${res.status})`);
   const data = (await res.json()) as string[][];
   cache.set(osisId, data);
   return data;
-}
-
-/** Ajusta para funcionar sob subdiretório (ex.: GitHub Pages project site). */
-function basePath(): string {
-  if (typeof window === "undefined") return "";
-  return "";
 }
 
 export async function getChapter(osisId: string, chapterNumber: number): Promise<Verse[]> {

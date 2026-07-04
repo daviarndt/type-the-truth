@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/components/AppProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { withBase } from "@/lib/basePath";
 import "./globals.css";
 import "./app.css";
 
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
   },
   description:
     "Digite sua jornada pelas Escrituras. Uma experiência de digitação focada e minimalista, capítulo a capítulo pela Bíblia inteira.",
-  manifest: "/manifest.webmanifest",
+  manifest: withBase("/manifest.webmanifest"),
+  icons: { icon: withBase("/icon.svg"), apple: withBase("/icon.svg") },
   appleWebApp: { capable: true, title: "Type the Truth", statusBarStyle: "black-translucent" },
 };
 

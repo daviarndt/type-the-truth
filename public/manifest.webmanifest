@@ -2,14 +2,14 @@
   "name": "Type the Truth",
   "short_name": "Type the Truth",
   "description": "Digite sua jornada pelas Escrituras, capítulo a capítulo.",
-  "start_url": "/dashboard",
-  "scope": "/",
+  "start_url": "./dashboard",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#171614",
   "theme_color": "#171614",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }
