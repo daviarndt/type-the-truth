@@ -2,10 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Download, Upload, Trash2, Volume2, VolumeX } from "lucide-react";
+import { Check, Download, Upload, Trash2, Volume2 } from "lucide-react";
 import { useApp } from "@/components/AppProvider";
 import { downloadSave, importSaveFromFile } from "@/lib/save";
-import { wipeAll, type ThemeId, type UILanguage } from "@/lib/db";
+import { wipeAll, type ThemeId, type UILanguage, type KeySoundId } from "@/lib/db";
+import { KEY_SOUNDS, playKeySound } from "@/lib/keysound";
 
 const THEMES: { id: ThemeId; bg: string; fg: string; accent: string }[] = [
   { id: "dark", bg: "#171614", fg: "#e5e2da", accent: "#4f98a3" },
@@ -107,20 +108,38 @@ export default function SettingsPage() {
         {/* Digitação: som + fonte */}
         <div className="panel section-card">
           <span className="eyebrow">{t("settings.typing")}</span>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, flexWrap: "wrap", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {settings.sound ? <Volume2 size={18} style={{ color: "hsl(var(--primary))" }} /> : <VolumeX size={18} style={{ color: "hsl(var(--muted))" }} />}
+
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <Volume2 size={18} style={{ color: settings.keySound === "off" ? "hsl(var(--muted))" : "hsl(var(--primary))" }} />
               <div>
                 <strong style={{ fontSize: ".875rem", color: "hsl(var(--foreground))", display: "block" }}>{t("settings.sound")}</strong>
                 <span style={{ fontSize: ".8rem", color: "hsl(var(--muted))" }}>{t("settings.soundDesc")}</span>
               </div>
             </div>
-            <button className="pill-toggle" data-on={settings.sound} onClick={() => updateSettings({ sound: !settings.sound })}>
-              {settings.sound ? t("settings.on") : t("settings.off")}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {KEY_SOUNDS.map((id: KeySoundId) => (
+                <button
+                  key={id}
+                  className="chip"
+                  data-on={settings.keySound === id}
+                  onClick={() => {
+                    updateSettings({ keySound: id });
+                    playKeySound(id); // prévia imediata
+                  }}
+                >
+                  {t(`sound.${id}`)}
+                </button>
+              ))}
+            </div>
+            {settings.keySound !== "off" && (
+              <p style={{ fontSize: ".75rem", color: "hsl(var(--muted-foreground))", marginTop: 8 }}>
+                {t("settings.soundPreviewHint")}
+              </p>
+            )}
           </div>
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 24 }}>
             <label className="field-label" style={{ display: "block", marginBottom: 10 }}>{t("settings.fontSize")}</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {FONT_SIZES.map((f) => (

@@ -26,6 +26,7 @@ import {
 import { bumpStreak } from "@/lib/streak";
 import { evaluateAchievements, getAchievement } from "@/lib/achievements";
 import { totalVersesTyped } from "@/lib/stats";
+import { playKeySound } from "@/lib/keysound";
 
 interface Props {
   osisId: string;
@@ -42,26 +43,6 @@ interface UnlockedAch {
   namePt: string;
   nameEn: string;
   iconName: string;
-}
-
-// ── Som de teclado (Web Audio, sem asset) ────────────
-let audioCtx: AudioContext | null = null;
-function playClick() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const ctx = audioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 520;
-    osc.type = "square";
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
-  } catch {
-    /* ignora */
-  }
 }
 
 // ── Construção do capítulo ───────────────────────────
@@ -362,10 +343,10 @@ function TypingEngine({
       while (cur < totalLetters && letters[cur].skip) { s[cur] = "c"; cur++; }
     }
     cursorRef.current = cur;
-    if (settings.sound) playClick();
+    playKeySound(settings.keySound);
     commit();
     if (cur >= totalLetters) finish();
-  }, [letters, totalLetters, commit, finish, key, settings.sound]);
+  }, [letters, totalLetters, commit, finish, key, settings.keySound]);
 
   const handleBackspace = useCallback(() => {
     if (statusRef.current === "done") return;

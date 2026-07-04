@@ -7,14 +7,15 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 export type ThemeId = "dark" | "light" | "parchment";
 export type UILanguage = "pt-BR" | "en";
+export type KeySoundId = "off" | "soft" | "mechanical" | "clicky" | "typewriter" | "pop";
 
 export interface Settings {
   name: string;
   theme: ThemeId;
   uiLanguage: UILanguage;
   dailyGoalMinutes: number;
-  /** Som de teclado ao digitar. */
-  sound: boolean;
+  /** Som de teclado ao digitar ("off" = sem som). */
+  keySound: KeySoundId;
   /** Escala da fonte do texto bíblico (1 = padrão). */
   fontScale: number;
   /** Última leitura aberta (para "continuar de onde parei"). */
@@ -26,7 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   uiLanguage: "pt-BR",
   dailyGoalMinutes: 10,
-  sound: false,
+  keySound: "off",
   fontScale: 1,
   lastChapterKey: null,
 };
@@ -112,8 +113,14 @@ function getDB() {
 
 export async function getSettings(): Promise<Settings> {
   const db = await getDB();
-  const saved = (await db.get("kv", "settings")) as Partial<Settings> | undefined;
-  return { ...DEFAULT_SETTINGS, ...(saved ?? {}) };
+  const raw = (await db.get("kv", "settings")) as (Partial<Settings> & { sound?: boolean }) | undefined;
+  const merged: Settings = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
+  // Migração: campo booleano `sound` antigo → seletor `keySound`.
+  if (raw && raw.keySound === undefined && typeof raw.sound === "boolean") {
+    merged.keySound = raw.sound ? "soft" : "off";
+  }
+  delete (merged as Partial<Settings> & { sound?: boolean }).sound;
+  return merged;
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
