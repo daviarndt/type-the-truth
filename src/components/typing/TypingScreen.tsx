@@ -171,7 +171,7 @@ function TypingEngine({
   t: (k: string, p?: Record<string, string | number>) => string;
 }) {
   const router = useRouter();
-  const { settings } = useApp();
+  const { settings, pushIfSignedIn } = useApp();
   const { letters, words, wordStarts, verseEndOffsets, firstTypeable } = useMemo(() => buildChapter(verses), [verses]);
   const totalLetters = letters.length;
   const key = chapterKey(osisId, chapterNumber);
@@ -315,7 +315,10 @@ function TypingEngine({
       if (def) fresh.push({ namePt: def.namePt, nameEn: def.nameEn, iconName: def.iconName });
     }
     setNewAchievements(fresh);
-  }, [osisId, chapterNumber, verses.length, key]);
+
+    // Sobe para a nuvem, se logado (silencioso)
+    pushIfSignedIn();
+  }, [osisId, chapterNumber, verses.length, key, pushIfSignedIn]);
 
   // ── Digitação ──
   const processChars = useCallback((text: string) => {

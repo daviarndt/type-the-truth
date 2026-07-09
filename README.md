@@ -4,9 +4,9 @@
 
 Inspirado no [Monkeytype](https://monkeytype.com), mas pensado como ferramenta de disciplina espiritual, não como jogo de velocidade.
 
-**100% client-side** — site estático, sem servidor, sem conta, sem senha. Todo o seu progresso vive no seu navegador (IndexedDB) e você pode baixar um arquivo de backup a qualquer momento.
+**Local-first** — site estático, sem servidor próprio. Todo o progresso vive no seu navegador (IndexedDB) e funciona offline. Opcionalmente, você pode ligar a **sincronização na nuvem** (login com Google via Firebase) para ter backup automático e continuar entre dispositivos — sem isso, o app roda 100% local.
 
-**Stack:** Next.js 14 (App Router, `output: export`) · TypeScript · Tailwind CSS · IndexedDB (via `idb`)
+**Stack:** Next.js 14 (App Router, `output: export`) · TypeScript · Tailwind CSS · IndexedDB (via `idb`) · Firebase Auth + Firestore (opcional)
 
 ---
 
@@ -98,6 +98,42 @@ scripts/
 É um projeto de hobby para site estático. Sem backend não há banco de dados para manter, custo de hospedagem, contas de usuário nem superfície de ataque. A troca: o progresso é por-navegador — daí o **backup exportável** cobrir a portabilidade entre dispositivos.
 
 ---
+
+## Sincronização na nuvem (opcional)
+
+Por padrão o app é **100% local**. Se quiser login + backup automático + sync entre dispositivos, ligue o Firebase (tier gratuito, não pausa por inatividade). O modelo é **local-first**: o IndexedDB continua sendo a fonte da verdade; ao entrar, o app baixa a versão da nuvem, **mescla** (nunca perde progresso — mantém o maior PPM/precisão, união de capítulos, sessões e conquistas) e sobe o resultado. Depois, cada capítulo concluído é enviado automaticamente.
+
+### Passo a passo (uma vez)
+
+1. **Crie um projeto** em [console.firebase.google.com](https://console.firebase.google.com).
+2. **Authentication** → *Get started* → habilite o provedor **Google**.
+3. Em **Authentication → Settings → Authorized domains**, adicione seu domínio do Pages: `daviarndt.github.io` (e `localhost` para testes).
+4. **Firestore Database** → *Create database* → modo de produção. Em **Rules**, cole:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /saves/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+
+   Isso garante que **cada usuário só acessa o próprio save**.
+5. **Project settings → Your apps → Web app** (`</>`). Copie os 4 valores para as variáveis:
+
+   - `apiKey` → `NEXT_PUBLIC_FIREBASE_API_KEY`
+   - `authDomain` → `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+   - `projectId` → `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+   - `appId` → `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+6. **Local:** copie para `.env.local`. **Produção (GitHub Pages):** adicione os 4 como *Repository secrets* em **Settings → Secrets and variables → Actions** (o workflow já os injeta no build).
+
+> As chaves do Firebase Web são **públicas por design** — a segurança vem das *Security Rules* do passo 4, não do sigilo das chaves. Sem as variáveis, a seção "Conta e sincronização" simplesmente não aparece.
+
+**Limite prático:** o save é gravado como um documento único (máx. 1 MB no Firestore) — dá folga para milhares de sessões. Se um dia isso apertar, dá para migrar o histórico de sessões para uma subcoleção.
 
 ## Conteúdo bíblico e licença
 
